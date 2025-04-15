@@ -44,6 +44,25 @@ namespace Emtelaak.UserRegistration.API.Controllers
             }
         }
 
+        //[HttpPost("verify-email")]
+        //[ProducesResponseType(StatusCodes.Status200OK)]
+        //[ProducesResponseType(StatusCodes.Status400BadRequest)]
+        //public async Task<ActionResult<EmailVerificationResultDto>> VerifyEmail([FromBody] EmailVerificationDto verificationDto)
+        //{
+        //    try
+        //    {
+        //        var command = new VerifyEmailCommand { VerificationData = verificationDto };
+        //        var result = await _mediator.Send(command);
+
+        //        return Ok(result);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error during email verification");
+        //        return BadRequest(new { errors = new { general = new[] { "Email verification failed. Please try again." } } });
+        //    }
+        //}
+
         [HttpPost("verify-email")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

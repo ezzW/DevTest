@@ -75,8 +75,12 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 await _userRepository.AddUserPreferenceAsync(userPreference);
 
                 // Generate email verification token and send email
-                var emailToken = await _identityService.GenerateEmailVerificationTokenAsync(authUser);
-                await _emailService.SendVerificationEmailAsync(authUser.Email, authUser.FirstName, emailToken);
+                //var emailToken = await _identityService.GenerateEmailVerificationTokenAsync(authUser);
+                //await _emailService.SendVerificationEmailAsync(authUser.Email, authUser.FirstName, emailToken);
+
+                var emailCode = await _identityService.GenerateEmailVerificationCodeAsync(authUser);
+                await _emailService.SendVerificationEmailAsync(authUser.Email, authUser.FirstName, emailCode);
+
 
                 // Add activity log
                 var activityLog = new ActivityLog

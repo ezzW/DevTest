@@ -513,5 +513,87 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
             var result = await _userManager.UpdateAsync(applicationUser);
             return _mapper.Map<IdentityResultModel>(result);
         }
+
+        public async Task<string> GenerateEmailVerificationCodeAsync(AuthUserModel user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            // Generate a 6-digit code
+            var random = new Random();
+            var code = random.Next(100000, 999999).ToString();
+
+            // Store this code securely in the database with the user
+            var appUser = await _userManager.FindByIdAsync(user.Id.ToString());
+            if (appUser == null)
+                throw new InvalidOperationException($"User not found with ID: {user.Id}");
+
+            // Use the security stamp as a placeholder to store the code temporarily
+            appUser.VerificationCode = code;
+            appUser.VerificationCodeExpiry = DateTime.UtcNow.AddHours(24);
+
+            await _userManager.UpdateAsync(appUser);
+
+            return code;
+        }
+
+        public async Task<IdentityResultModel> VerifyEmailWithCodeAsync(AuthUserModel user, string code)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var appUser = await _userManager.FindByIdAsync(user.Id.ToString());
+            if (appUser == null)
+                throw new InvalidOperationException($"User not found with ID: {user.Id}");
+
+            // Check if code is valid and not expired
+            if (appUser.VerificationCode != code)
+            {
+                return new IdentityResultModel
+                {
+                    Succeeded = false,
+                    Errors = new List<IdentityErrorModel>
+            {
+                new IdentityErrorModel { Code = "InvalidCode", Description = "The verification code is invalid." }
+            }
+                };
+            }
+
+            if (appUser.VerificationCodeExpiry < DateTime.UtcNow)
+            {
+                return new IdentityResultModel
+                {
+                    Succeeded = false,
+                    Errors = new List<IdentityErrorModel>
+            {
+                new IdentityErrorModel { Code = "ExpiredCode", Description = "The verification code has expired." }
+            }
+                };
+            }
+
+            // Mark email as confirmed
+            appUser.EmailConfirmed = true;
+            appUser.VerificationCode = null;
+            appUser.VerificationCodeExpiry = null;
+
+            var result = await _userManager.UpdateAsync(appUser);
+            return MapIdentityResult(result);
+        }
+
+        private IdentityResultModel MapIdentityResult(Microsoft.AspNetCore.Identity.IdentityResult identityResult)
+        {
+            if (identityResult == null)
+                throw new ArgumentNullException(nameof(identityResult));
+
+            return new IdentityResultModel
+            {
+                Succeeded = identityResult.Succeeded,
+                Errors = identityResult.Errors.Select(e => new IdentityErrorModel
+                {
+                    Code = e.Code,
+                    Description = e.Description
+                }).ToList()
+            };
+        }
     }
 }

@@ -15,7 +15,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<EmailService> _logger;
         private readonly bool _useSandbox;
-        private readonly string _outputPath;
+        private readonly string _emailOutputPath;
         private readonly string _devRecipient;
 
         public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
@@ -23,32 +23,66 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // Check if sandbox mode is enabled (for development)
-            _useSandbox = bool.Parse(_configuration["Email:UseSandbox"] ?? "false");
-            _outputPath = _configuration["Email:OutputPath"] ?? "emails";
-            _devRecipient = _configuration["Email:DevRecipient"] ?? "dev@example.com";
+            _useSandbox = _configuration.GetValue<bool>("Email:UseSandbox", false);
+            _emailOutputPath = _configuration.GetValue<string>("Email:OutputPath", "emails");
 
-            // Create output directory if it doesn't exist
-            if (_useSandbox && !Directory.Exists(_outputPath))
+            // Create output directory if it doesn't exist and we're in sandbox mode
+            if (_useSandbox && !Directory.Exists(_emailOutputPath))
             {
-                Directory.CreateDirectory(_outputPath);
+                Directory.CreateDirectory(_emailOutputPath);
             }
         }
 
-        public async Task SendVerificationEmailAsync(string email, string name, string token)
+        public async Task SendVerificationEmailAsync(string email, string name, string verificationCode)
         {
-            var subject = "Verify Your Email - Emtelaak";
-            var content = GetVerificationEmailTemplate(name, token);
+            try
+            {
+                _logger.LogInformation("Sending verification email to: {Email}", email);
 
-            await SendEmailAsync(email, subject, content);
+                var template = File.ReadAllText("Templates/Email/VerificationEmail.html");
+                template = template.Replace("{{Name}}", name ?? "User");
+                template = template.Replace("{{VerificationCode}}", verificationCode);
+
+                var content = GetVerificationEmailTemplate(name, verificationCode);
+
+                await SendEmailAsync(
+                    email,
+                    "Verify Your Email - Emtelaak",
+                    template,
+                    isHtml: true);
+
+                _logger.LogInformation("Verification email sent to: {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending verification email to {Email}: {Message}", email, ex.Message);
+                throw;
+            }
         }
 
-        public async Task SendPasswordResetEmailAsync(string email, string name, string token)
+        public async Task SendPasswordResetEmailAsync(string email, string name, string resetCode)
         {
-            var subject = "Reset Your Password - Emtelaak";
-            var content = GetPasswordResetEmailTemplate(name, token);
+            try
+            {
+                _logger.LogInformation("Sending password reset email to: {Email}", email);
 
-            await SendEmailAsync(email, subject, content);
+                var template = File.ReadAllText("Templates/Email/PasswordResetEmail.html");
+                template = template.Replace("{{Name}}", name ?? "User");
+                template = template.Replace("{{ResetCode}}", resetCode);
+
+                await SendEmailAsync(
+                    email,
+                    "Reset Your Password - Emtelaak",
+                    template,
+                    isHtml: true);
+
+                _logger.LogInformation("Password reset email sent to: {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending password reset email to {Email}: {Message}", email, ex.Message);
+                throw;
+            }
         }
 
         public async Task SendWelcomeEmailAsync(string email, string name)
@@ -91,47 +125,45 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
             await SendEmailAsync(email, subject, content);
         }
 
-        private async Task SendEmailAsync(string recipient, string subject, string htmlContent)
+        private async Task SendEmailAsync(string to, string subject, string body, bool isHtml = false)
         {
-            try
+            // If in sandbox mode, write to file instead of sending
+            if (_useSandbox)
             {
-                if (_useSandbox)
-                {
-                    await SaveEmailToFileAsync(recipient, subject, htmlContent);
-                    return;
-                }
+                string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+                string safeEmail = to.Replace("@", "_at_").Replace(".", "_dot_");
+                string fileName = $"{timestamp}_{safeEmail}_{subject.Replace(" ", "_")}.html";
+                string filePath = Path.Combine(_emailOutputPath, fileName);
 
-                var senderName = _configuration["Email:SenderName"];
-                var senderEmail = _configuration["Email:SenderEmail"];
-                var smtpServer = _configuration["Email:SmtpServer"];
-                var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
-                var smtpUsername = _configuration["Email:SmtpUsername"];
-                var smtpPassword = _configuration["Email:SmtpPassword"];
-                var useSsl = bool.Parse(_configuration["Email:UseSsl"] ?? "true");
+                string emailContent = $"<!--\nTo: {to}\nSubject: {subject}\nDate: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n-->\n\n{body}";
+                await File.WriteAllTextAsync(filePath, emailContent);
 
-                using var message = new MailMessage
-                {
-                    From = new MailAddress(senderEmail, senderName),
-                    Subject = subject,
-                    Body = htmlContent,
-                    IsBodyHtml = true
-                };
-
-                message.To.Add(new MailAddress(recipient));
-
-                using var client = new SmtpClient(smtpServer, smtpPort)
-                {
-                    Credentials = new NetworkCredential(smtpUsername, smtpPassword),
-                    EnableSsl = useSsl
-                };
-
-                await client.SendMailAsync(message);
-                _logger.LogInformation("Email sent to {Recipient} with subject: {Subject}", recipient, subject);
+                _logger.LogInformation("Email saved to file: {FilePath}", filePath);
+                return;
             }
-            catch (Exception ex)
+
+            // Real email sending logic
+            using (var client = new SmtpClient())
             {
-                _logger.LogError(ex, "Failed to send email to {Recipient} with subject: {Subject}", recipient, subject);
-                throw;
+                client.Host = _configuration["Email:SmtpServer"];
+                client.Port = int.Parse(_configuration["Email:SmtpPort"]);
+                client.EnableSsl = bool.Parse(_configuration["Email:UseSsl"]);
+                client.Credentials = new NetworkCredential(
+                    _configuration["Email:SmtpUsername"],
+                    _configuration["Email:SmtpPassword"]);
+
+                using (var message = new MailMessage())
+                {
+                    message.From = new MailAddress(
+                        _configuration["Email:SenderEmail"],
+                        _configuration["Email:SenderName"]);
+                    message.Subject = subject;
+                    message.Body = body;
+                    message.IsBodyHtml = isHtml;
+                    message.To.Add(new MailAddress(to));
+
+                    await client.SendMailAsync(message);
+                }
             }
         }
 
@@ -143,7 +175,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
                 var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
                 var safeSubject = string.Join("_", subject.Split(Path.GetInvalidFileNameChars()));
                 var safeRecipient = string.Join("_", recipient.Split(Path.GetInvalidFileNameChars()));
-                var filename = Path.Combine(_outputPath, $"{timestamp}_{safeRecipient}_{safeSubject}.html");
+                var filename = Path.Combine(_emailOutputPath, $"{timestamp}_{safeRecipient}_{safeSubject}.html");
 
                 // Add recipient and subject as HTML comments
                 var emailContent = $@"<!--
@@ -168,8 +200,7 @@ Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}
             var baseUrl = _configuration["Application:BaseUrl"];
             var verificationUrl = $"{baseUrl}/verify-email?token={WebUtility.UrlEncode(token)}";
 
-            return $@"
-<!DOCTYPE html>
+            return $@"<!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'>
@@ -177,22 +208,21 @@ Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}
 </head>
 <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;'>
     <div style='text-align: center; margin-bottom: 20px;'>
-        <img src='{baseUrl}/images/logo.png' alt='Emtelaak Logo' style='max-width: 200px;'>
+        <img src='/images/logo.png' alt='Emtelaak Logo' style='max-width: 200px;'>
     </div>
     <div style='background-color: #f9f9f9; border-radius: 5px; padding: 20px; margin-bottom: 20px;'>
         <h1 style='color: #2c3e50; margin-top: 0;'>Verify Your Email Address</h1>
-        <p>Hello {name},</p>
-        <p>Thank you for registering with Emtelaak. To complete your registration, please verify your email address by clicking the button below:</p>
+        <p>Hello {{Name}},</p>
+        <p>Thank you for registering with Emtelaak. To complete your registration, please use the verification code below:</p>
         <div style='text-align: center; margin: 30px 0;'>
-            <a href='{verificationUrl}' style='background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;'>Verify Email Address</a>
+            <div style='font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px; background-color: #f0f0f0; display: inline-block; border-radius: 4px;'>{{VerificationCode}}</div>
         </div>
-        <p>If the button above doesn't work, you can also copy and paste the following link into your browser:</p>
-        <p style='word-break: break-all;'><a href='{verificationUrl}'>{verificationUrl}</a></p>
-        <p>This link will expire in 24 hours.</p>
+        <p>Enter this code on the verification page to activate your account.</p>
+        <p>This code will expire in 24 hours.</p>
     </div>
     <div style='font-size: 12px; color: #777; text-align: center; margin-top: 20px;'>
         <p>If you did not create an account with Emtelaak, please disregard this email.</p>
-        <p>&copy; {DateTime.UtcNow.Year} Emtelaak. All rights reserved.</p>
+        <p>&copy; 2025 Emtelaak. All rights reserved.</p>
     </div>
 </body>
 </html>";

@@ -33,11 +33,11 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 // If user exists and email is not confirmed
                 if (user != null && !await _identityService.IsEmailConfirmedAsync(user))
                 {
-                    // Generate email verification token
-                    var token = await _identityService.GenerateEmailVerificationTokenAsync(user);
+                    // Generate email verification code
+                    var code = await _identityService.GenerateEmailVerificationCodeAsync(user);
 
                     // Send verification email
-                    await _emailService.SendVerificationEmailAsync(user.Email, user.FirstName, token);
+                    await _emailService.SendVerificationEmailAsync(user.Email, user.FirstName, code);
 
                     _logger.LogInformation("Verification email resent to: {Email}", request.Email);
                 }

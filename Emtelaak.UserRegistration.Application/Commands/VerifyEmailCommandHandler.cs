@@ -55,12 +55,12 @@ namespace Emtelaak.UserRegistration.Application.Commands
                     };
                 }
 
-                // Verify email token
-                var result = await _identityService.VerifyEmailAsync(identityUser, request.VerificationData.VerificationCode);
+                // Verify email code
+                var result = await _identityService.VerifyEmailWithCodeAsync(identityUser, request.VerificationData.VerificationCode);
                 if (!result.Succeeded)
                 {
                     _logger.LogWarning("Email verification failed for user: {Email}, Errors: {Errors}",
-                        request.VerificationData.Email, string.Join(", ", result.Errors));
+                        request.VerificationData.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
 
                     return new EmailVerificationResultDto
                     {

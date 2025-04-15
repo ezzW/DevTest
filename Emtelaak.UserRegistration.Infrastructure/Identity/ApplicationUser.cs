@@ -17,5 +17,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Identity
         public DateTime? TermsAcceptedAt { get; set; }
         public string? ReferralCode { get; set; }
         public Guid? DomainUserId { get; set; } // Link to our domain User entity
+        public string? VerificationCode { get; set; }
+        public DateTime? VerificationCodeExpiry { get; set; }
     }
 }

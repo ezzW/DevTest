@@ -36,5 +36,8 @@ namespace Emtelaak.UserRegistration.Application.Interfaces
         Task<AuthUserModel> FindByDomainUserIdAsync(Guid domainUserId);
         Task<IdentityResultModel> UpdateLastLoginDateAsync(AuthUserModel user);
         Task<IdentityResultModel> UpdateUserAsync(AuthUserModel user);
+        Task<IdentityResultModel> VerifyEmailWithCodeAsync(AuthUserModel user, string code);
+        Task<string> GenerateEmailVerificationCodeAsync(AuthUserModel user);
+
     }
 }
