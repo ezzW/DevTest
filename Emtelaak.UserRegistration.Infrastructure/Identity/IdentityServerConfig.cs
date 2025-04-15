@@ -41,6 +41,27 @@ namespace Emtelaak.UserRegistration.Infrastructure.Identity
         {
             return new List<Client>
             {
+                new Client
+                {
+            ClientId = "emtelaak_api_client",
+            ClientName = "Emtelaak API Client",
+            AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
+            ClientSecrets = { new Secret("api_secret".Sha256()) },
+            AllowOfflineAccess = true,
+            AllowedScopes =
+            {
+                IdentityServerConstants.StandardScopes.OpenId,
+                IdentityServerConstants.StandardScopes.Profile,
+                IdentityServerConstants.StandardScopes.Email,
+                IdentityServerConstants.StandardScopes.Phone,
+                "emtelaak_api"
+            },
+            AccessTokenLifetime = 3600, // 1 hour
+            RefreshTokenUsage = TokenUsage.OneTimeOnly,
+            RefreshTokenExpiration = TokenExpiration.Absolute,
+            AbsoluteRefreshTokenLifetime = 2592000, // 30 days
+            UpdateAccessTokenClaimsOnRefresh = true
+                },
                 // Web client (browser-based)
                 new Client
                 {

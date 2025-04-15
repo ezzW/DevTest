@@ -19,6 +19,7 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,55 +87,74 @@ builder.Services.AddDbContext<AppDbContext>(options =>
             sqlOptions.MigrationsAssembly("Emtelaak.UserRegistration.Infrastructure");
         }));
 
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+{
+    // Your identity options here
+    options.SignIn.RequireConfirmedEmail = true;
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
 // Configure Identity and IdentityServer
-builder.Services.AddIdentityServices(builder.Configuration);
+builder.Services.AddIdentityServer()
+    .AddDeveloperSigningCredential() // Use AddSigningCredential with a real certificate in production
+    .AddInMemoryIdentityResources(IdentityServerConfig.GetIdentityResources())
+    .AddInMemoryApiResources(IdentityServerConfig.GetApiResources())
+    .AddInMemoryApiScopes(IdentityServerConfig.GetApiScopes())
+    .AddInMemoryClients(IdentityServerConfig.GetClients(builder.Configuration))
+    .AddAspNetIdentity<ApplicationUser>();
 
 // Configure Authentication
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.Authority = builder.Configuration["Authentication:Authority"]; // Your IdentityServer URL
+    options.RequireHttpsMetadata = builder.Environment.IsProduction(); // False for development
+    options.Audience = "emtelaak_api";
+
+    // This prevents redirects for API requests
+    options.Events = new JwtBearerEvents
     {
-        // Load values from configuration
-        var jwtSettings = builder.Configuration.GetSection("Authentication");
-        var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]);
-
-        options.TokenValidationParameters = new TokenValidationParameters
+        OnChallenge = async context =>
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = false,  // For development; set to true in production
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidateAudience = false, // For development; set to true in production
-            ValidAudience = jwtSettings["Audience"],
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
+            // Only handle API requests
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
 
-        options.Events = new JwtBearerEvents
-        {
-            OnTokenValidated = context =>
-            {
+                var result = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    message = "Unauthorized. Authentication is required."
+                });
+
+                await context.Response.WriteAsync(result);
+
                 var logger = context.HttpContext.RequestServices
                     .GetRequiredService<ILogger<Program>>();
-                logger.LogInformation("Token validated successfully");
-                return Task.CompletedTask;
-            },
-            OnAuthenticationFailed = context =>
-            {
-                var logger = context.HttpContext.RequestServices
-                    .GetRequiredService<ILogger<Program>>();
-                logger.LogError(context.Exception, "Authentication failed");
-                return Task.CompletedTask;
-            },
-            OnMessageReceived = context =>
-            {
-                var logger = context.HttpContext.RequestServices
-                    .GetRequiredService<ILogger<Program>>();
-                logger.LogInformation("Auth header received: {Header}",
-                    context.Request.Headers.ContainsKey("Authorization") ? "Present" : "Missing");
-                return Task.CompletedTask;
+                logger.LogInformation("API authentication challenge issued - returning 401 Unauthorized");
             }
-        };
-    });
+        },
+        OnTokenValidated = context =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Token validated successfully");
+            return Task.CompletedTask;
+        }
+    };
+});
 
 // Configure AutoMapper
 builder.Services.AddAutoMapper(
@@ -145,6 +165,7 @@ builder.Services.AddAutoMapper(
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("Emtelaak.UserRegistration.Application")));
 
 // Configure Application Services
+builder.Services.AddScoped<ApplicationUserManager>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IUserRepository, UserRepository>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IIdentityService, IdentityService>();
@@ -153,6 +174,7 @@ builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IEma
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ISmsService, SmsService>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IKycVerificationService, KycVerificationService>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IDocumentStorageService, AzureBlobStorageService>();
+builder.Services.AddScoped<UserManager<ApplicationUser>>(provider => provider.GetRequiredService<ApplicationUserManager>());
 
 // Configure CORS
 builder.Services.AddCors(options =>
