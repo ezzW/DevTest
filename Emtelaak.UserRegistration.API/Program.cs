@@ -1,0 +1,223 @@
+// Emtelaak.UserRegistration.API/Program.cs
+using System;
+using System.Reflection;
+using Emtelaak.UserRegistration.Application.Interfaces;
+using Emtelaak.UserRegistration.Application.Mappings;
+using Emtelaak.UserRegistration.Infrastructure.Data;
+using Emtelaak.UserRegistration.Infrastructure.Identity;
+using Emtelaak.UserRegistration.Infrastructure.Repositories;
+using Emtelaak.UserRegistration.Infrastructure.Services;
+using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/emtelaak-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+// Add services to the container
+builder.Services.AddControllers();
+
+// Configure Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Emtelaak User Registration API",
+        Version = "v1",
+        Description = "API for user registration, authentication, and profile management"
+    });
+
+    // Configure Swagger to use JWT authentication
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// Configure database
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.MigrationsAssembly("Emtelaak.UserRegistration.Infrastructure");
+        }));
+
+// Configure Identity and IdentityServer
+builder.Services.AddIdentityServices(builder.Configuration);
+
+// Configure Authentication
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        // Load values from configuration
+        var jwtSettings = builder.Configuration.GetSection("Authentication");
+        var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]);
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = false,  // For development; set to true in production
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidateAudience = false, // For development; set to true in production
+            ValidAudience = jwtSettings["Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>();
+                logger.LogInformation("Token validated successfully");
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>();
+                logger.LogError(context.Exception, "Authentication failed");
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>();
+                logger.LogInformation("Auth header received: {Header}",
+                    context.Request.Headers.ContainsKey("Authorization") ? "Present" : "Missing");
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+// Configure AutoMapper
+builder.Services.AddAutoMapper(
+    typeof(Emtelaak.UserRegistration.Application.Mappings.MappingProfile).Assembly,
+    typeof(Emtelaak.UserRegistration.Infrastructure.Mappings.InfrastructureMappingProfile).Assembly);
+
+// Configure MediatR
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("Emtelaak.UserRegistration.Application")));
+
+// Configure Application Services
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IUserRepository, UserRepository>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IIdentityService, IdentityService>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ITokenService, TokenService>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IEmailService, EmailService>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ISmsService, SmsService>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IKycVerificationService, KycVerificationService>();
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IDocumentStorageService, AzureBlobStorageService>();
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policyBuilder =>
+    {
+        policyBuilder
+            .WithOrigins(
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ??
+                new[] { "https://localhost:3000" })
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
+
+// Configure Redis for distributed caching
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+    options.InstanceName = "Emtelaak:";
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/error");
+    app.UseHsts();
+}
+
+app.UseRouting();
+app.UseHttpsRedirection();
+app.UseSerilogRequestLogging();
+app.UseCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+// Seed database
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var dbContext = services.GetRequiredService<AppDbContext>();
+        await dbContext.Database.MigrateAsync();
+
+        // Seed default data
+        await SeedData.Initialize(app.Services, logger);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while seeding the database");
+    }
+}
+
+app.Run();

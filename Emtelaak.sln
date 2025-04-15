@@ -1,0 +1,58 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.API", "Emtelaak.UserRegistration.API\Emtelaak.UserRegistration.API.csproj", "{EA2FC738-C797-4794-83EC-0B6A1169F382}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.Application", "Emtelaak.UserRegistration.Application\Emtelaak.UserRegistration.Application.csproj", "{103C9606-D8B8-49D1-AB2E-4EA359B0011B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.Domain", "Emtelaak.UserRegistration.Domain\Emtelaak.UserRegistration.Domain.csproj", "{2E1E1B27-A2FB-4BD9-A595-770511EB2FBC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.Infrastructure", "Emtelaak.UserRegistration.Infrastructure\Emtelaak.UserRegistration.Infrastructure.csproj", "{BC3B3E46-320B-4BED-8756-712E5BB84A9B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.Shared", "Emtelaak.UserRegistration.Shared\Emtelaak.UserRegistration.Shared.csproj", "{6CB177A0-0DCF-4933-B1E6-A404BBFBB0F3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.UnitTests", "Emtelaak.UserRegistration.UnitTests\Emtelaak.UserRegistration.UnitTests.csproj", "{3A6C819A-83C2-469D-9385-4895D49C5C80}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emtelaak.UserRegistration.IntegrationTests", "Emtelaak.UserRegistration.IntegrationTests\Emtelaak.UserRegistration.IntegrationTests.csproj", "{67B1F141-CFB0-499E-8699-26207EDCCA84}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EA2FC738-C797-4794-83EC-0B6A1169F382}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA2FC738-C797-4794-83EC-0B6A1169F382}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA2FC738-C797-4794-83EC-0B6A1169F382}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA2FC738-C797-4794-83EC-0B6A1169F382}.Release|Any CPU.Build.0 = Release|Any CPU
+		{103C9606-D8B8-49D1-AB2E-4EA359B0011B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{103C9606-D8B8-49D1-AB2E-4EA359B0011B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{103C9606-D8B8-49D1-AB2E-4EA359B0011B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{103C9606-D8B8-49D1-AB2E-4EA359B0011B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E1E1B27-A2FB-4BD9-A595-770511EB2FBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E1E1B27-A2FB-4BD9-A595-770511EB2FBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E1E1B27-A2FB-4BD9-A595-770511EB2FBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E1E1B27-A2FB-4BD9-A595-770511EB2FBC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC3B3E46-320B-4BED-8756-712E5BB84A9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC3B3E46-320B-4BED-8756-712E5BB84A9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC3B3E46-320B-4BED-8756-712E5BB84A9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC3B3E46-320B-4BED-8756-712E5BB84A9B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CB177A0-0DCF-4933-B1E6-A404BBFBB0F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CB177A0-0DCF-4933-B1E6-A404BBFBB0F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CB177A0-0DCF-4933-B1E6-A404BBFBB0F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CB177A0-0DCF-4933-B1E6-A404BBFBB0F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A6C819A-83C2-469D-9385-4895D49C5C80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A6C819A-83C2-469D-9385-4895D49C5C80}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A6C819A-83C2-469D-9385-4895D49C5C80}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A6C819A-83C2-469D-9385-4895D49C5C80}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67B1F141-CFB0-499E-8699-26207EDCCA84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67B1F141-CFB0-499E-8699-26207EDCCA84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67B1F141-CFB0-499E-8699-26207EDCCA84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67B1F141-CFB0-499E-8699-26207EDCCA84}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
