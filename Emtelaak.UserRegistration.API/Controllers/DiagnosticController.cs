@@ -26,6 +26,8 @@ public class DiagnosticController : ControllerBase
         var userIdClaim = User.FindFirst("sub")?.Value;
         var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
 
+        _logger.LogInformation("User accessed authenticated endpoint: {UserId}", userIdClaim);
+
         return Ok(new
         {
             message = "Authentication successful",

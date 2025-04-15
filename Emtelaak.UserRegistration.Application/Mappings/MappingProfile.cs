@@ -45,6 +45,7 @@ namespace Emtelaak.UserRegistration.Application.Mappings
                 .ForMember(dest => dest.RequiresPhoneVerification, opt => opt.MapFrom(src => !src.PhoneVerified));
 
             CreateMap<User, UserProfileDto>()
+                .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id.ToString()))
                 .ForMember(dest => dest.UserType, opt => opt.MapFrom(src => src.UserType.ToString()))
                 .ForMember(dest => dest.KycStatus, opt => opt.MapFrom(src => src.KycVerification != null ? src.KycVerification.Status.ToString() : "NotStarted"))
                 .ForMember(dest => dest.AccreditationStatus, opt => opt.MapFrom(src => src.Accreditation != null ? src.Accreditation.Status.ToString() : "NotStarted"))

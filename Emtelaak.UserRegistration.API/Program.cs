@@ -122,6 +122,29 @@ builder.Services.AddAuthentication(options =>
     options.RequireHttpsMetadata = builder.Environment.IsProduction(); // False for development
     options.Audience = "emtelaak_api";
 
+    // Add these configurations
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Authentication:Issuer"],
+        ValidAudience = builder.Configuration["Authentication:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Authentication:SecretKey"]))
+    };
+
+    // Add this to see token validation errors in logs
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError("Authentication failed: {Exception}", context.Exception);
+            return Task.CompletedTask;
+        }
+    };
     // This prevents redirects for API requests
     options.Events = new JwtBearerEvents
     {
@@ -191,6 +214,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+
+
 // Configure Redis for distributed caching
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -213,8 +238,8 @@ else
     app.UseHsts();
 }
 
-app.UseRouting();
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseSerilogRequestLogging();
 app.UseCors();
 

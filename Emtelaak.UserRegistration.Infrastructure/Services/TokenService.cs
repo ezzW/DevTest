@@ -29,93 +29,63 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly ILogger<TokenService> _logger;
+        private readonly IIdentityService _identityService;
 
         public TokenService(
             UserManager<ApplicationUser> userManager,
             AppDbContext dbContext,
             IMapper mapper,
             IConfiguration configuration,
-            ILogger<TokenService> logger)
+            ILogger<TokenService> logger,
+            IIdentityService identityService)
         {
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _identityService = identityService;
         }
 
         public async Task<TokenResult> GenerateAuthTokensAsync(AuthUserModel user)
         {
-            try
+            var claims = new List<Claim>
             {
-                _logger.LogInformation("Generating auth tokens for user: {UserId}", user.Id);
+                new Claim(JwtRegisteredClaimNames.Sub, user.DomainUserId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim("name", $"{user.FirstName} {user.LastName}"),
+                new Claim("domainUserId", user.DomainUserId.ToString()),
+            };
 
-                // Convert domain model to application user
-                var applicationUser = await _userManager.FindByIdAsync(user.Id.ToString());
-                if (applicationUser == null)
-                {
-                    throw new ArgumentException($"User not found with ID: {user.Id}");
-                }
-
-                // Get user roles
-                var roles = await _userManager.GetRolesAsync(applicationUser);
-
-                // Create claims for JWT token
-                var claims = new List<Claim>
-                {
-                    new Claim(JwtClaimTypes.Subject, user.Id.ToString()),
-                    new Claim(JwtClaimTypes.Email, user.Email),
-                    new Claim(JwtClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
-                    new Claim(JwtClaimTypes.EmailVerified, user.EmailConfirmed.ToString().ToLower()),
-                    new Claim(JwtClaimTypes.PhoneNumber, user.PhoneNumber ?? string.Empty),
-                    new Claim(JwtClaimTypes.PhoneNumberVerified, user.PhoneVerified.ToString().ToLower()),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                };
-
-                // Add role claims
-                foreach (var role in roles)
-                {
-                    claims.Add(new Claim(JwtClaimTypes.Role, role));
-                }
-
-                // Add domain user ID if available
-                if (user.DomainUserId.HasValue)
-                {
-                    claims.Add(new Claim("domainUserId", user.DomainUserId.Value.ToString()));
-                }
-
-                // Get signing credentials
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Authentication:SecretKey"]));
-                var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-                // Set token expiration
-                var expiry = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Authentication:TokenExpiryMinutes"] ?? "60"));
-
-                // Create JWT token
-                var token = new JwtSecurityToken(
-                    issuer: _configuration["Authentication:Issuer"],
-                    audience: _configuration["Authentication:Audience"],
-                    claims: claims,
-                    expires: expiry,
-                    signingCredentials: creds);
-
-                // Generate refresh token
-                var refreshToken = GenerateRefreshToken();
-
-                // Return token result
-                return new TokenResult
-                {
-                    AccessToken = new JwtSecurityTokenHandler().WriteToken(token),
-                    RefreshToken = refreshToken,
-                    ExpiresIn = (int)(expiry - DateTime.UtcNow).TotalSeconds
-                };
-            }
-            catch (Exception ex)
+            // Add roles to claims
+            var roles = await _identityService.GetRolesAsync(user);
+            foreach (var role in roles)
             {
-                _logger.LogError(ex, "Error generating auth tokens: {Message}", ex.Message);
-                throw;
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Authentication:SecretKey"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Authentication:Issuer"],
+                audience: _configuration["Authentication:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddHours(1),
+                signingCredentials: creds
+            );
+
+            string refreshToken = GenerateRefreshToken();
+
+            return new TokenResult
+            {
+                AccessToken = new JwtSecurityTokenHandler().WriteToken(token),
+                RefreshToken = refreshToken,
+                ExpiresIn = 3600 // 1 hour in seconds
+            };
         }
+        
 
         public async Task<string> GenerateMfaTokenAsync(AuthUserModel user)
         {

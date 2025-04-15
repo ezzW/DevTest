@@ -101,12 +101,32 @@ namespace Emtelaak.UserRegistration.API.Controllers
 
                 var result = await _mediator.Send(command);
 
-                if (result == null || (string.IsNullOrEmpty(result.AccessToken) && !result.RequiresMfa))
+                if (result == null)
                 {
                     return Unauthorized(new { message = "Invalid email or password" });
                 }
 
-                return Ok(result);
+                if (result.RequiresMfa)
+                {
+                    return Ok(result); // Return MFA info
+                }
+
+                if (string.IsNullOrEmpty(result.AccessToken))
+                {
+                    return Unauthorized(new { message = "Authentication failed" });
+                }
+
+                // Add token type to the response
+                var enhancedResult = new
+                {
+                    access_token = result.AccessToken,
+                    refresh_token = result.RefreshToken,
+                    expires_in = result.ExpiresIn,
+                    token_type = "Bearer",
+                    user_id = result.UserId
+                };
+
+                return Ok(enhancedResult);
             }
             catch (Exception ex)
             {
