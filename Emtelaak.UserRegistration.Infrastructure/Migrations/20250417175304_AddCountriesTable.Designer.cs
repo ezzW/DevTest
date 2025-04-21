@@ -4,6 +4,7 @@ using Emtelaak.UserRegistration.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Emtelaak.UserRegistration.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250417175304_AddCountriesTable")]
+    partial class AddCountriesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,6 +126,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Migrations
                         .HasColumnType("nvarchar(2)");
 
                     b.Property<string>("CurrencyCode")
+                        .IsRequired()
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
 
@@ -138,6 +142,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("LanguageCode")
+                        .IsRequired()
                         .HasMaxLength(2)
                         .HasColumnType("nvarchar(2)");
 
@@ -673,12 +678,6 @@ namespace Emtelaak.UserRegistration.Infrastructure.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PasswordResetCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("PasswordResetCodeExpiry")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
@@ -709,12 +708,6 @@ namespace Emtelaak.UserRegistration.Infrastructure.Migrations
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("VerificationCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("VerificationCodeExpiry")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

@@ -2,6 +2,8 @@
 using System;
 using System.Linq;
 using AutoMapper;
+using Emtelaak.UserRegistration.Application.DTOs;
+using Emtelaak.UserRegistration.Domain.Entities;
 using Emtelaak.UserRegistration.Domain.Models;
 using Emtelaak.UserRegistration.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -78,6 +80,21 @@ namespace Emtelaak.UserRegistration.Infrastructure.Mappings
             CreateMap<IdentityErrorModel, IdentityError>()
                 .ForMember(dest => dest.Code, opt => opt.MapFrom(src => src.Code))
                 .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description));
+
+            CreateMap<Country, CountryDto>()
+                .ForMember(dest => dest.Code, opt => opt.MapFrom(src => src.Code))
+                .ForMember(dest => dest.NameEn, opt => opt.MapFrom(src => src.NameEn))
+                .ForMember(dest => dest.NameAr, opt => opt.MapFrom(src => src.NameAr))
+                .ForMember(dest => dest.PhoneCode, opt => opt.MapFrom(src => src.PhoneCode))
+                .ForMember(dest => dest.Flag, opt => opt.MapFrom(src => src.Flag));
+
+            CreateMap<Country, CountryPhoneCodeDto>()
+                .ForMember(dest => dest.Code, opt => opt.MapFrom(src => src.Code))
+                .ForMember(dest => dest.NameEn, opt => opt.MapFrom(src => src.NameEn))
+                .ForMember(dest => dest.NameAr, opt => opt.MapFrom(src => src.NameAr))
+                .ForMember(dest => dest.PhoneCode, opt => opt.MapFrom(src => src.PhoneCode))
+                .ForMember(dest => dest.Flag, opt => opt.MapFrom(src => src.Flag));
+
         }
     }
 }

@@ -3,7 +3,9 @@ using System;
 using System.Threading.Tasks;
 using Emtelaak.UserRegistration.Application.Commands;
 using Emtelaak.UserRegistration.Application.DTOs;
+using Emtelaak.UserRegistration.Application.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -30,18 +32,12 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<UserRegistrationResultDto>> Register([FromBody] UserRegistrationDto registrationDto)
         {
-            try
-            {
-                var command = new RegisterUserCommand { RegistrationData = registrationDto };
-                var result = await _mediator.Send(command);
 
-                return Created($"/api/users/{result.UserId}", result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during user registration");
-                return BadRequest(new { errors = new { general = new[] { "Registration failed. Please try again." } } });
-            }
+            var command = new RegisterUserCommand { RegistrationData = registrationDto };
+            var result = await _mediator.Send(command);
+
+            return Created($"/api/users/{result.UserId}", result);
+
         }
 
         //[HttpPost("verify-email")]
@@ -68,18 +64,11 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<EmailVerificationResultDto>> VerifyEmail([FromBody] EmailVerificationDto verificationDto)
         {
-            try
-            {
-                var command = new VerifyEmailCommand { VerificationData = verificationDto };
-                var result = await _mediator.Send(command);
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during email verification");
-                return BadRequest(new { errors = new { general = new[] { "Email verification failed. Please try again." } } });
-            }
+            var command = new VerifyEmailCommand { VerificationData = verificationDto };
+            var result = await _mediator.Send(command);
+
+            return Ok(result);
         }
 
         [HttpPost("verify-phone")]
@@ -87,18 +76,10 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<PhoneVerificationResultDto>> VerifyPhone([FromBody] PhoneVerificationDto verificationDto)
         {
-            try
-            {
-                var command = new VerifyPhoneCommand { VerificationData = verificationDto };
-                var result = await _mediator.Send(command);
+            var command = new VerifyPhoneCommand { VerificationData = verificationDto };
+            var result = await _mediator.Send(command);
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during phone verification");
-                return BadRequest(new { errors = new { general = new[] { "Phone verification failed. Please try again." } } });
-            }
+            return Ok(result);
         }
 
         [HttpPost("login")]
@@ -106,52 +87,35 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<LoginResultDto>> Login([FromBody] LoginDto loginDto)
         {
-            try
+
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+
+            var command = new LoginUserCommand
             {
-                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-                var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+                LoginData = loginDto,
+                IpAddress = ipAddress,
+                UserAgent = userAgent
+            };
 
-                var command = new LoginUserCommand
-                {
-                    LoginData = loginDto,
-                    IpAddress = ipAddress,
-                    UserAgent = userAgent
-                };
+            var result = await _mediator.Send(command);
 
-                var result = await _mediator.Send(command);
-
-                if (result == null)
-                {
-                    return Unauthorized(new { message = "Invalid email or password" });
-                }
-
-                if (result.RequiresMfa)
-                {
-                    return Ok(result); // Return MFA info
-                }
-
-                if (string.IsNullOrEmpty(result.AccessToken))
-                {
-                    return Unauthorized(new { message = "Authentication failed" });
-                }
-
-                // Add token type to the response
-                var enhancedResult = new
-                {
-                    access_token = result.AccessToken,
-                    refresh_token = result.RefreshToken,
-                    expires_in = result.ExpiresIn,
-                    token_type = "Bearer",
-                    user_id = result.UserId
-                };
-
-                return Ok(enhancedResult);
-            }
-            catch (Exception ex)
+            if (result == null)
             {
-                _logger.LogError(ex, "Error during login");
-                return Unauthorized(new { message = "Login failed" });
+                return Unauthorized(new { message = "Invalid email or password" });
             }
+
+            if (result.RequiresMfa)
+            {
+                return Ok(result); // Return MFA info
+            }
+
+            if (string.IsNullOrEmpty(result.AccessToken))
+            {
+                return Unauthorized(new { message = "Authentication failed" });
+            }
+
+            return Ok(result);
         }
 
         [HttpPost("mfa-verify")]
@@ -159,33 +123,124 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<LoginResultDto>> VerifyMfa([FromBody] MfaVerificationDto mfaDto)
         {
+
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+
+            var command = new VerifyMfaCommand
+            {
+                VerificationData = mfaDto,
+                IpAddress = ipAddress,
+                UserAgent = userAgent
+            };
+
+            var result = await _mediator.Send(command);
+
+            if (result == null || string.IsNullOrEmpty(result.AccessToken))
+            {
+                return Unauthorized(new { message = "Invalid verification code" });
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("refresh-token")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<LoginResultDto>> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
+        {
+            var command = new RefreshTokenCommand { RefreshToken = refreshTokenDto.RefreshToken };
+            var result = await _mediator.Send(command);
+
+            if (result == null || string.IsNullOrEmpty(result.AccessToken))
+            {
+                return Unauthorized(new { message = "Invalid refresh token" });
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("logout")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> Logout([FromBody] LogoutDto logoutDto)
+        {
+            var command = new LogoutCommand { RefreshToken = logoutDto.RefreshToken };
+            await _mediator.Send(command);
+
+            return Ok(new { message = "Logged out successfully" });
+        }
+
+        [HttpPost("resend-verification-email")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationEmailDto resendDto)
+        {
+            var command = new ResendVerificationEmailCommand { Email = resendDto.Email };
+            await _mediator.Send(command);
+
+            return Ok(new { message = "Verification email sent successfully" });
+        }
+
+        [HttpPost("resend-verification-sms")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> ResendVerificationSms([FromBody] ResendVerificationSmsDto resendDto)
+        {
+            var command = new ResendVerificationSmsCommand { PhoneNumber = resendDto.PhoneNumber };
+            await _mediator.Send(command);
+
+            return Ok(new { message = "Verification SMS sent successfully" });
+        }
+
+
+        /// <summary>
+        /// Get all countries or search countries by name
+        /// </summary>
+        /// <param name="searchTerm">Optional search term to filter countries</param>
+        /// <returns>List of countries</returns>
+        [HttpGet("countries")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<List<CountryDto>>> GetCountries([FromQuery] string? searchTerm = null)
+        {
             try
             {
-                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-                var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
-
-                var command = new VerifyMfaCommand
-                {
-                    VerificationData = mfaDto,
-                    IpAddress = ipAddress,
-                    UserAgent = userAgent
-                };
-
-                var result = await _mediator.Send(command);
-
-                if (result == null || string.IsNullOrEmpty(result.AccessToken))
-                {
-                    return Unauthorized(new { message = "Invalid verification code" });
-                }
+                var query = new GetCountriesQuery { SearchTerm = searchTerm };
+                var result = await _mediator.Send(query);
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during MFA verification");
-                return Unauthorized(new { message = "MFA verification failed" });
+                _logger.LogError(ex, "Error retrieving countries");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "An error occurred while retrieving countries" });
             }
         }
+
+        /// <summary>
+        /// Get all country phone codes or search by country name/code
+        /// </summary>
+        /// <param name="searchTerm">Optional search term to filter countries</param>
+        /// <returns>List of country phone codes</returns>
+        [HttpGet("countries/phone-codes")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<List<CountryPhoneCodeDto>>> GetCountryPhoneCodes([FromQuery] string? searchTerm = null)
+        {
+            try
+            {
+                var query = new GetCountryPhoneCodesQuery { SearchTerm = searchTerm };
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving country phone codes");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "An error occurred while retrieving country phone codes" });
+            }
+        }
+
 
         [HttpPost("forgot-password")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -204,7 +259,7 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 // Always return success to prevent email enumeration attacks
                 return Ok(new ForgotPasswordResultDto
                 {
-                    Message = "If your email is registered, you will receive a reset link shortly",
+                    Message = "If your email is registered, you will receive a reset code shortly",
                     EmailSent = false
                 });
             }
@@ -238,85 +293,28 @@ namespace Emtelaak.UserRegistration.API.Controllers
             }
         }
 
-        [HttpPost("refresh-token")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<LoginResultDto>> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
-        {
-            try
-            {
-                var command = new RefreshTokenCommand { RefreshToken = refreshTokenDto.RefreshToken };
-                var result = await _mediator.Send(command);
+        //[HttpPost("enable-two-factor")]
+        //[Authorize]
+        //public async Task<ActionResult<EnableTwoFactorResultDto>> EnableTwoFactor([FromBody] EnableTwoFactorDto request)
+        //{
+        //    try
+        //    {
+        //        var userId = GetUserIdFromClaims();
+        //        var command = new EnableTwoFactorCommand
+        //        {
+        //            UserId = userId,
+        //            Method = request.Method,
+        //            Enable = request.Enable
+        //        };
 
-                if (result == null || string.IsNullOrEmpty(result.AccessToken))
-                {
-                    return Unauthorized(new { message = "Invalid refresh token" });
-                }
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during token refresh");
-                return Unauthorized(new { message = "Token refresh failed" });
-            }
-        }
-
-        [HttpPost("logout")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Logout([FromBody] LogoutDto logoutDto)
-        {
-            try
-            {
-                var command = new LogoutCommand { RefreshToken = logoutDto.RefreshToken };
-                await _mediator.Send(command);
-
-                return Ok(new { message = "Logged out successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during logout");
-                // Always return success to avoid information leakage
-                return Ok(new { message = "Logged out successfully" });
-            }
-        }
-
-        [HttpPost("resend-verification-email")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationEmailDto resendDto)
-        {
-            try
-            {
-                var command = new ResendVerificationEmailCommand { Email = resendDto.Email };
-                await _mediator.Send(command);
-
-                return Ok(new { message = "Verification email sent successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error resending verification email");
-                // Always return success to prevent email enumeration attacks
-                return Ok(new { message = "If your email is registered, you will receive a verification email shortly" });
-            }
-        }
-
-        [HttpPost("resend-verification-sms")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> ResendVerificationSms([FromBody] ResendVerificationSmsDto resendDto)
-        {
-            try
-            {
-                var command = new ResendVerificationSmsCommand { PhoneNumber = resendDto.PhoneNumber };
-                await _mediator.Send(command);
-
-                return Ok(new { message = "Verification SMS sent successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error resending verification SMS");
-                // Always return success to prevent phone number enumeration attacks
-                return Ok(new { message = "If your phone number is registered, you will receive a verification SMS shortly" });
-            }
-        }
+        //        var result = await _mediator.Send(command);
+        //        return Ok(result);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error enabling two-factor authentication");
+        //        return BadRequest(new { message = "Failed to enable two-factor authentication" });
+        //    }
+        //}
     }
 }

@@ -19,5 +19,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Identity
         public Guid? DomainUserId { get; set; } // Link to our domain User entity
         public string? VerificationCode { get; set; }
         public DateTime? VerificationCodeExpiry { get; set; }
+        public string? PasswordResetCode { get; set; }
+        public DateTime? PasswordResetCodeExpiry { get; set; }
     }
 }

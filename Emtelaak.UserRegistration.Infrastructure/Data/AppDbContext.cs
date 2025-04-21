@@ -25,6 +25,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Data
         public DbSet<UserPreference> UserPreferences { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
         public DbSet<UserSession> UserSessions { get; set; }
+        public DbSet<Country> Countries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -42,7 +43,9 @@ namespace Emtelaak.UserRegistration.Infrastructure.Data
             ConfigureUserPreferenceEntity(builder);
             ConfigureActivityLogEntity(builder);
             ConfigureUserSessionEntity(builder);
+            ConfigureCountryEntity(builder);
         }
+
 
         private void ConfigureUserEntity(ModelBuilder builder)
         {
@@ -235,6 +238,48 @@ namespace Emtelaak.UserRegistration.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        /// <summary>
+        /// Configure the Country entity
+        /// </summary>
+        /// <param name="modelBuilder">Model builder</param>
+        private void ConfigureCountryEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Country>(entity =>
+            {
+                entity.ToTable("Countries");
+
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Code)
+                    .IsRequired()
+                    .HasMaxLength(2);
+
+                entity.Property(e => e.NameEn)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.NameAr)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.PhoneCode)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Flag)
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.LanguageCode)
+                    .HasMaxLength(2);
+
+                entity.Property(e => e.CurrencyCode)
+                    .HasMaxLength(3);
+
+                entity.HasIndex(e => e.Code)
+                    .IsUnique();
             });
         }
     }

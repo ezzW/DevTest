@@ -37,7 +37,7 @@ namespace Emtelaak.UserRegistration.Application.Commands
                     // Don't reveal that the email doesn't exist for security reasons
                     return new ForgotPasswordResultDto
                     {
-                        Message = "If your email is registered, you will receive a reset link shortly",
+                        Message = "If your email is registered, you will receive a reset code shortly",
                         EmailSent = false
                     };
                 }
@@ -50,22 +50,22 @@ namespace Emtelaak.UserRegistration.Application.Commands
                     // Don't reveal that the email isn't confirmed for security reasons
                     return new ForgotPasswordResultDto
                     {
-                        Message = "If your email is registered, you will receive a reset link shortly",
+                        Message = "If your email is registered, you will receive a reset code shortly",
                         EmailSent = false
                     };
                 }
 
-                // Generate password reset token
-                var token = await _identityService.GeneratePasswordResetTokenAsync(user);
+                // Generate password reset code
+                var resetCode = await _identityService.GeneratePasswordResetCodeAsync(user);
 
-                // Send password reset email
-                await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, token);
+                // Send password reset email with code
+                await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetCode);
 
                 _logger.LogInformation("Password reset email sent to: {Email}", request.Email);
 
                 return new ForgotPasswordResultDto
                 {
-                    Message = "If your email is registered, you will receive a reset link shortly",
+                    Message = "If your email is registered, you will receive a reset code shortly",
                     EmailSent = true
                 };
             }
@@ -76,7 +76,7 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 // Don't reveal error details for security reasons
                 return new ForgotPasswordResultDto
                 {
-                    Message = "If your email is registered, you will receive a reset link shortly",
+                    Message = "If your email is registered, you will receive a reset code shortly",
                     EmailSent = false
                 };
             }

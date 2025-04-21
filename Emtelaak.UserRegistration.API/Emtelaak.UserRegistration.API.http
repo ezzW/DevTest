@@ -1,6 +1,6 @@
 @Emtelaak.UserRegistration.API_HostAddress = http://localhost:5162
 
-GET {{Emtelaak.UserRegistration.API_HostAddress}}/auth/
+GET {{Emtelaak.UserRegistration.API_HostAddress}}/api/auth/
 Accept: application/json
 
 ###

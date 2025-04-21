@@ -38,6 +38,8 @@ namespace Emtelaak.UserRegistration.Application.Interfaces
         Task<IdentityResultModel> UpdateUserAsync(AuthUserModel user);
         Task<IdentityResultModel> VerifyEmailWithCodeAsync(AuthUserModel user, string code);
         Task<string> GenerateEmailVerificationCodeAsync(AuthUserModel user);
+        Task<string> GeneratePasswordResetCodeAsync(AuthUserModel user);
+        Task<IdentityResultModel> ResetPasswordWithCodeAsync(AuthUserModel user, string code, string newPassword);
 
     }
 }

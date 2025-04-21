@@ -20,6 +20,12 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Emtelaak.UserRegistration.Application.Behaviors;
+using FluentValidation;
+using Emtelaak.UserRegistration.API.Middleware;
+using Emtelaak.UserRegistration.Application.Commands;
+using Emtelaak.UserRegistration.Application.Validators;
+using Scalar.AspNetCore;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -185,7 +191,20 @@ builder.Services.AddAutoMapper(
     typeof(Emtelaak.UserRegistration.Infrastructure.Mappings.InfrastructureMappingProfile).Assembly);
 
 // Configure MediatR
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Load("Emtelaak.UserRegistration.Application")));
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<RegisterUserCommandValidator>());
+
+// This registers all validators from the Application assembly
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterUserCommandValidator>();
+
+//builder.Services.AddValidatorsFromAssembly(Assembly.Load("Emtelaak.UserRegistration.Application"));
+//builder.Services.AddValidatorsFromAssembly(Assembly.Load("Emtelaak.UserRegistration.Application"));
+//builder.Services.AddScoped<IValidator<RegisterUserCommand>, RegisterUserCommandValidator>();
+
+// And this adds the validation behavior to the MediatR pipeline
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+
+
 
 // Configure Application Services
 builder.Services.AddScoped<ApplicationUserManager>();
@@ -198,6 +217,7 @@ builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ISms
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IKycVerificationService, KycVerificationService>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IDocumentStorageService, AzureBlobStorageService>();
 builder.Services.AddScoped<UserManager<ApplicationUser>>(provider => provider.GetRequiredService<ApplicationUserManager>());
+builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ICountryRepository,CountryRepository>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -226,19 +246,14 @@ builder.Services.AddStackExchangeRedisCache(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
+
     app.UseSwagger();
     app.UseSwaggerUI();
     app.UseDeveloperExceptionPage();
-}
-else
-{
-    app.UseExceptionHandler("/error");
-    app.UseHsts();
-}
+
 
 app.UseHttpsRedirection();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseRouting();
 app.UseSerilogRequestLogging();
 app.UseCors();

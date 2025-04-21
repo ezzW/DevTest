@@ -580,6 +580,78 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
             return MapIdentityResult(result);
         }
 
+        public async Task<string> GeneratePasswordResetCodeAsync(AuthUserModel user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            // Generate a 6-digit code
+            var random = new Random();
+            var code = random.Next(100000, 999999).ToString();
+
+            // Store this code securely in the database with the user
+            var appUser = await _userManager.FindByIdAsync(user.Id.ToString());
+            if (appUser == null)
+                throw new InvalidOperationException($"User not found with ID: {user.Id}");
+
+            // Store the code and set expiry (30 minutes)
+            appUser.PasswordResetCode = code;
+            appUser.PasswordResetCodeExpiry = DateTime.UtcNow.AddMinutes(30);
+
+            await _userManager.UpdateAsync(appUser);
+
+            return code;
+        }
+
+        public async Task<IdentityResultModel> ResetPasswordWithCodeAsync(AuthUserModel user, string code, string newPassword)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var appUser = await _userManager.FindByIdAsync(user.Id.ToString());
+            if (appUser == null)
+                throw new InvalidOperationException($"User not found with ID: {user.Id}");
+
+            // Check if code is valid and not expired
+            if (appUser.PasswordResetCode != code)
+            {
+                return new IdentityResultModel
+                {
+                    Succeeded = false,
+                    Errors = new List<IdentityErrorModel>
+            {
+                new IdentityErrorModel { Code = "InvalidCode", Description = "The verification code is invalid." }
+            }
+                };
+            }
+
+            if (appUser.PasswordResetCodeExpiry == null || appUser.PasswordResetCodeExpiry < DateTime.UtcNow)
+            {
+                return new IdentityResultModel
+                {
+                    Succeeded = false,
+                    Errors = new List<IdentityErrorModel>
+            {
+                new IdentityErrorModel { Code = "ExpiredCode", Description = "The verification code has expired." }
+            }
+                };
+            }
+
+            // Reset the password
+            var token = await _userManager.GeneratePasswordResetTokenAsync(appUser);
+            var result = await _userManager.ResetPasswordAsync(appUser, token, newPassword);
+
+            // Clear the reset code if successful
+            if (result.Succeeded)
+            {
+                appUser.PasswordResetCode = null;
+                appUser.PasswordResetCodeExpiry = null;
+                await _userManager.UpdateAsync(appUser);
+            }
+
+            return MapIdentityResult(result);
+        }
+
         private IdentityResultModel MapIdentityResult(Microsoft.AspNetCore.Identity.IdentityResult identityResult)
         {
             if (identityResult == null)

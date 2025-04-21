@@ -28,7 +28,7 @@ namespace Emtelaak.UserRegistration.Application.Commands
         {
             try
             {
-                _logger.LogInformation("Processing password reset");
+                _logger.LogInformation("Processing password reset for email: {Email}", request.ResetData.Email);
 
                 // Validate password match
                 if (request.ResetData.NewPassword != request.ResetData.ConfirmPassword)
@@ -46,66 +46,38 @@ namespace Emtelaak.UserRegistration.Application.Commands
                     };
                 }
 
-                // Parse token to get user email
-                string email = null;
-                try
-                {
-                    // In a real implementation, you'd use a proper token validation method
-                    // This is just a placeholder since reset tokens are usually encrypted
-                    var tokenParts = request.ResetData.Token.Split('|');
-                    if (tokenParts.Length > 1)
-                    {
-                        email = tokenParts[0];
-                    }
-                }
-                catch
-                {
-                    // Token parsing failed, we'll handle it below
-                }
-
-                if (string.IsNullOrEmpty(email))
-                {
-                    _logger.LogWarning("Password reset failed: Invalid token format");
-
-                    return new ResetPasswordResultDto
-                    {
-                        Success = false,
-                        Message = "Invalid reset token",
-                        Errors = new Dictionary<string, string[]>
-                        {
-                            ["token"] = new[] { "The password reset token is invalid or has expired." }
-                        }
-                    };
-                }
-
                 // Get user by email
-                var user = await _identityService.FindUserByEmailAsync(email);
+                var user = await _identityService.FindUserByEmailAsync(request.ResetData.Email);
                 if (user == null)
                 {
-                    _logger.LogWarning("Password reset failed: User not found for email {Email}", email);
+                    _logger.LogWarning("Password reset failed: User not found for email {Email}", request.ResetData.Email);
 
                     return new ResetPasswordResultDto
                     {
                         Success = false,
-                        Message = "Invalid reset token",
+                        Message = "Invalid reset code",
                         Errors = new Dictionary<string, string[]>
                         {
-                            ["token"] = new[] { "The password reset token is invalid or has expired." }
+                            ["email"] = new[] { "No account exists with this email address." }
                         }
                     };
                 }
 
-                // Reset password
-                var result = await _identityService.ResetPasswordAsync(user, request.ResetData.Token, request.ResetData.NewPassword);
+                // Reset password with code
+                var result = await _identityService.ResetPasswordWithCodeAsync(
+                    user,
+                    request.ResetData.ResetCode,
+                    request.ResetData.NewPassword);
+
                 if (!result.Succeeded)
                 {
                     _logger.LogWarning("Password reset failed for user {Email}: {Errors}",
-                        email,
+                        request.ResetData.Email,
                         string.Join(", ", result.Errors.Select(e => e.Description)));
 
-                    var errors = result.Errors.GroupBy(e => e.Code)
+                    var errors = result.Errors.GroupBy(e => e.Code.ToLower())
                         .ToDictionary(
-                            g => g.Key.ToLower(),
+                            g => g.Key,
                             g => g.Select(e => e.Description).ToArray()
                         );
 
@@ -118,7 +90,7 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 }
 
                 // Find domain user
-                var domainUser = await _userRepository.GetUserByEmailAsync(email);
+                var domainUser = await _userRepository.GetUserByEmailAsync(request.ResetData.Email);
                 if (domainUser != null)
                 {
                     // Add activity log
@@ -132,7 +104,7 @@ namespace Emtelaak.UserRegistration.Application.Commands
                     await _userRepository.AddActivityLogAsync(activityLog);
                 }
 
-                _logger.LogInformation("Password successfully reset for user: {Email}", email);
+                _logger.LogInformation("Password successfully reset for user: {Email}", request.ResetData.Email);
 
                 return new ResetPasswordResultDto
                 {
