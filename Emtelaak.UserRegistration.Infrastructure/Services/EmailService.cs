@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Emtelaak.UserRegistration.Infrastructure.Services
 {
-    public class EmailService : IEmailService
+    public partial class EmailService : IEmailService
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<EmailService> _logger;
@@ -125,45 +125,86 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
             await SendEmailAsync(email, subject, content);
         }
 
-        private async Task SendEmailAsync(string to, string subject, string body, bool isHtml = false)
+
+        public async Task SendTwoFactorCodeAsync(string email, string name, string code)
         {
-            // If in sandbox mode, write to file instead of sending
-            if (_useSandbox)
+            try
             {
-                string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-                string safeEmail = to.Replace("@", "_at_").Replace(".", "_dot_");
-                string fileName = $"{timestamp}_{safeEmail}_{subject.Replace(" ", "_")}.html";
-                string filePath = Path.Combine(_emailOutputPath, fileName);
+                _logger.LogInformation("Sending two-factor authentication code to: {Email}", email);
 
-                string emailContent = $"<!--\nTo: {to}\nSubject: {subject}\nDate: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n-->\n\n{body}";
-                await File.WriteAllTextAsync(filePath, emailContent);
+                string subject = "Two-Factor Authentication Code - Emtelaak";
 
-                _logger.LogInformation("Email saved to file: {FilePath}", filePath);
-                return;
-            }
+                // Get email template
+                //string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "Email", "TwoFactorEmail.html");
+                string template = await File.ReadAllTextAsync("Templates/Email/TwoFactorEmail.html");
 
-            // Real email sending logic
-            using (var client = new SmtpClient())
-            {
-                client.Host = _configuration["Email:SmtpServer"];
-                client.Port = int.Parse(_configuration["Email:SmtpPort"]);
-                client.EnableSsl = bool.Parse(_configuration["Email:UseSsl"]);
-                client.Credentials = new NetworkCredential(
-                    _configuration["Email:SmtpUsername"],
-                    _configuration["Email:SmtpPassword"]);
+                // Replace placeholders
+                string body = template
+                    .Replace("{{Name}}", name)
+                    .Replace("{{VerificationCode}}", code);
 
-                using (var message = new MailMessage())
+                if (_useSandbox)
                 {
-                    message.From = new MailAddress(
-                        _configuration["Email:SenderEmail"],
-                        _configuration["Email:SenderName"]);
-                    message.Subject = subject;
-                    message.Body = body;
-                    message.IsBodyHtml = isHtml;
-                    message.To.Add(new MailAddress(to));
-
-                    await client.SendMailAsync(message);
+                    // In sandbox mode, save email to file
+                    await SaveEmailToFileAsync(email, subject, body);
+                    _logger.LogInformation("Two-factor code email saved to file for: {Email}", email);
+                    return;
                 }
+
+                // Send actual email
+                await SendEmailAsync(email, subject, body);
+                _logger.LogInformation("Two-factor code email sent to: {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending two-factor code email to {Email}: {Message}", email, ex.Message);
+                throw;
+            }
+        }
+
+        private async Task SendEmailAsync(string email, string subject, string message, bool isHtml = true)
+        {
+            try
+            {
+                _logger.LogInformation("Sending email to {Email} with subject: {Subject}", email, subject);
+
+                if (_useSandbox)
+                {
+                    // In sandbox mode, save email to file
+                    await SaveEmailToFileAsync(email, subject, message);
+                    _logger.LogInformation("Email saved to file for: {Email}", email);
+                    return;
+                }
+
+                // Send actual email
+                using var client = new SmtpClient
+                {
+                    Host = _configuration["Email:SmtpServer"],
+                    Port = int.Parse(_configuration["Email:SmtpPort"]),
+                    EnableSsl = bool.Parse(_configuration["Email:UseSsl"]),
+                    Credentials = new NetworkCredential(
+                        _configuration["Email:SmtpUsername"],
+                        _configuration["Email:SmtpPassword"])
+                };
+
+                using var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(
+                        _configuration["Email:SenderEmail"],
+                        _configuration["Email:SenderName"]),
+                    Subject = subject,
+                    Body = message,
+                    IsBodyHtml = isHtml
+                };
+                mailMessage.To.Add(new MailAddress(email));
+
+                await client.SendMailAsync(mailMessage);
+                _logger.LogInformation("Email sent to: {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending email to {Email}: {Message}", email, ex.Message);
+                throw;
             }
         }
 
@@ -194,6 +235,8 @@ Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}
                 throw;
             }
         }
+
+
 
         private string GetVerificationEmailTemplate(string name, string token)
         {

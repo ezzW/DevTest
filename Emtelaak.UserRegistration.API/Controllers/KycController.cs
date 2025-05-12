@@ -1,6 +1,7 @@
 ﻿// Emtelaak.UserRegistration.API/Controllers/KycController.cs
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Emtelaak.UserRegistration.Application.Commands;
 using Emtelaak.UserRegistration.Application.DTOs;
@@ -34,21 +35,13 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<KycStatusDto>> GetKycStatus()
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var query = new GetKycStatusQuery { UserId = userId };
                 var result = await _mediator.Send(query);
 
                 return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving KYC status");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while retrieving KYC status" });
-            }
+            
         }
 
         [HttpPost("documents")]
@@ -57,8 +50,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<DocumentUploadResultDto>> UploadDocument(IFormFile file, [FromForm] string documentType)
         {
-            try
-            {
                 if (file == null || file.Length == 0)
                 {
                     return BadRequest(new { errors = new { file = new[] { "No file uploaded" } } });
@@ -94,13 +85,7 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 var result = await _mediator.Send(command);
 
                 return Created($"/api/kyc/documents/{result.DocumentId}", result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error uploading KYC document");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while uploading document" });
-            }
+
         }
 
         [HttpPost("submit")]
@@ -109,8 +94,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<KycSubmissionResultDto>> SubmitKyc([FromBody] KycSubmissionDto kycSubmissionDto)
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var command = new SubmitKycVerificationCommand
@@ -122,18 +105,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 var result = await _mediator.Send(command);
 
                 return Accepted(result);
-            }
-            catch (ApplicationException ex)
-            {
-                _logger.LogWarning(ex, "KYC submission failed");
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error submitting KYC verification");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while submitting KYC verification" });
-            }
         }
 
         [HttpGet("documents")]
@@ -141,21 +112,12 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<List<DocumentDto>>> GetKycDocuments()
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var query = new GetKycDocumentsQuery { UserId = userId };
                 var result = await _mediator.Send(query);
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving KYC documents");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while retrieving KYC documents" });
-            }
+                return Ok(result);            
         }
 
         [HttpGet("documents/{documentId}")]
@@ -188,12 +150,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 _logger.LogWarning(ex, "Document not found or access denied");
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving KYC document");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while retrieving KYC document" });
-            }
         }
 
         [HttpDelete("documents/{documentId}")]
@@ -221,12 +177,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 _logger.LogWarning(ex, "Document not found or access denied");
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting KYC document");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while deleting KYC document" });
-            }
         }
 
         // Webhook endpoint for KYC provider callbacks - not authenticated
@@ -252,7 +202,9 @@ namespace Emtelaak.UserRegistration.API.Controllers
 
         private Guid GetUserIdFromClaims()
         {
-            var userIdClaim = User.FindFirst("sub")?.Value;
+            var userIdClaim = User.FindFirst("sub")?.Value??
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                      User.FindFirst("domainUserId")?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 throw new ApplicationException("Invalid user identifier in token");

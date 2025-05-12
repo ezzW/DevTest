@@ -50,12 +50,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 _logger.LogWarning(ex, "User profile not found");
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving user profile");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while retrieving the user profile" });
-            }
         }
 
         [HttpPut("profile")]
@@ -82,12 +76,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
             {
                 _logger.LogWarning(ex, "User profile update failed");
                 return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating user profile");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while updating the user profile" });
             }
         }
 
@@ -116,12 +104,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 _logger.LogWarning(ex, "User preferences update failed");
                 return BadRequest(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating user preferences");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while updating user preferences" });
-            }
         }
 
         [HttpPut("password")]
@@ -130,8 +112,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<PasswordChangeResultDto>> ChangePassword([FromBody] PasswordChangeDto passwordChangeDto)
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var command = new ChangePasswordCommand
@@ -147,14 +127,7 @@ namespace Emtelaak.UserRegistration.API.Controllers
                     return BadRequest(result);
                 }
 
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error changing password");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while changing password" });
-            }
+                return Ok(result);       
         }
 
         [HttpPost("profile-picture")]
@@ -163,8 +136,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<DocumentUploadResultDto>> UploadProfilePicture(IFormFile file)
         {
-            try
-            {
                 if (file == null || file.Length == 0)
                 {
                     return BadRequest(new { message = "No file uploaded" });
@@ -194,13 +165,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 var result = await _mediator.Send(command);
 
                 return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error uploading profile picture");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while uploading profile picture" });
-            }
         }
 
         [HttpGet("sessions")]
@@ -208,21 +172,12 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<UserSessionsDto>> GetSessions()
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var query = new GetUserSessionsQuery { UserId = userId };
                 var result = await _mediator.Send(query);
 
                 return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving user sessions");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while retrieving user sessions" });
-            }
         }
 
         [HttpPost("sessions/{sessionId}/revoke")]
@@ -251,12 +206,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 _logger.LogWarning(ex, "Session revoke failed");
                 return NotFound(new { message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error revoking session");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while revoking session" });
-            }
         }
 
         [HttpPost("sessions/revoke-all-except")]
@@ -264,8 +213,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> RevokeAllSessionsExcept([FromBody] RevokeAllSessionsExceptDto revokeDto)
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var command = new RevokeAllSessionsExceptCommand
@@ -278,13 +225,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 await _mediator.Send(command);
 
                 return Ok(new { message = "All other sessions revoked successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error revoking all sessions");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while revoking sessions" });
-            }
         }
 
         [HttpGet("activity-log")]
@@ -292,8 +232,6 @@ namespace Emtelaak.UserRegistration.API.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ActivityLogListDto>> GetActivityLog([FromQuery] int limit = 20)
         {
-            try
-            {
                 var userId = GetUserIdFromClaims();
 
                 var query = new GetUserActivityLogQuery
@@ -305,13 +243,62 @@ namespace Emtelaak.UserRegistration.API.Controllers
                 var result = await _mediator.Send(query);
 
                 return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving activity log");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { message = "An error occurred while retrieving activity log" });
-            }
+        }
+
+        [HttpPost("enable-two-factor")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<EnableTwoFactorResultDto>> EnableTwoFactor([FromBody] EnableTwoFactorDto request)
+        {
+                var userId = GetUserIdFromClaims();
+                var command = new EnableTwoFactorCommand
+                {
+                    UserId = userId,
+                    Method = request.Method,
+                    Enable = request.Enable
+                };
+
+                var result = await _mediator.Send(command);
+                return Ok(result);
+        }
+
+        [HttpPost("verify-two-factor-setup")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<bool>> VerifyTwoFactorSetup([FromBody] VerifyTwoFactorSetupDto request)
+        {
+                var userId = GetUserIdFromClaims();
+                var command = new VerifyTwoFactorSetupCommand
+                {
+                    UserId = userId,
+                    Method = request.Method,
+                    VerificationCode = request.VerificationCode
+                };
+
+                var result = await _mediator.Send(command);
+                if (!result)
+                {
+                    return BadRequest(new { message = "Invalid verification code" });
+                }
+
+                return Ok(new { success = true, message = "Two-factor authentication has been enabled" });
+        }
+
+        [HttpGet("two-factor-status")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<TwoFactorStatusDto>> GetTwoFactorStatus()
+        {
+                var userId = GetUserIdFromClaims();
+                var query = new GetTwoFactorStatusQuery { UserId = userId };
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
         }
 
         private Guid GetUserIdFromClaims()

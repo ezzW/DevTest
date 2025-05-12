@@ -63,7 +63,9 @@ namespace Emtelaak.UserRegistration.Application.Commands
                     ContentType = request.File.ContentType,
                     StoragePath = storagePath,
                     UploadedAt = DateTime.UtcNow,
-                    VerificationStatus = DocumentVerificationStatus.Pending
+                    VerificationStatus = DocumentVerificationStatus.Pending,
+                    IsAccreditationDocument = request.IsAccreditationDocument,
+                    AccreditationId = request.AccreditationId
                 };
 
                 // Save document in database
@@ -73,10 +75,10 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 var activityLog = new ActivityLog
                 {
                     UserId = request.UserId,
-                    ActivityType = ActivityType.DocumentUpload,
+                    ActivityType = request.IsAccreditationDocument ? ActivityType.AccreditationDocumentUpload : ActivityType.DocumentUpload,
                     Timestamp = DateTime.UtcNow,
                     Status = ActivityStatus.Success,
-                    Details = $"{{\"documentId\":\"{savedDocument.Id}\",\"documentType\":\"{docType}\",\"fileName\":\"{savedDocument.FileName}\"}}"
+                    Details = $"{{\"documentId\":\"{savedDocument.Id}\",\"documentType\":\"{docType}\",\"fileName\":\"{savedDocument.FileName}\",\"isAccreditationDocument\":\"{request.IsAccreditationDocument}\"}}"
                 };
                 await _userRepository.AddActivityLogAsync(activityLog);
 

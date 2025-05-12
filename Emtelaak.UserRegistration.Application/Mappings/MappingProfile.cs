@@ -50,7 +50,34 @@ namespace Emtelaak.UserRegistration.Application.Mappings
                 .ForMember(dest => dest.KycStatus, opt => opt.MapFrom(src => src.KycVerification != null ? src.KycVerification.Status.ToString() : "NotStarted"))
                 .ForMember(dest => dest.AccreditationStatus, opt => opt.MapFrom(src => src.Accreditation != null ? src.Accreditation.Status.ToString() : "NotStarted"))
                 .ForMember(dest => dest.ProfileCompletionPercentage, opt => opt.Ignore()) // Calculated in service
-                .ForMember(dest => dest.ProfilePictureUrl, opt => opt.Ignore()); // Set in service
+                .ForMember(dest => dest.ProfilePictureUrl, opt => opt.Ignore())// Set in handler
+                .ForMember(dest => dest.KycStatus, opt => opt.MapFrom(src =>src.KycVerification != null ? src.KycVerification.Status.ToString() : "NotStarted"))
+                .ForMember(dest => dest.AccreditationStatus, opt => opt.MapFrom(src => src.Accreditation != null ? src.Accreditation.Status.ToString() : "NotStarted"))
+                .ForMember(dest => dest.UserPreference, opt => opt.MapFrom(src => src.UserPreference))
+                .ForMember(dest => dest.Documents, opt => opt.MapFrom(src => src.Documents)) 
+                .ForMember(dest => dest.RecentActivities, opt => opt.MapFrom(src => src.ActivityLogs)); 
+
+            CreateMap<KycVerification, KycVerificationDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.RiskLevel, opt => opt.MapFrom(src => src.RiskLevel.ToString()))
+                .ForMember(dest => dest.VerificationType, opt => opt.MapFrom(src => src.VerificationType.ToString()));
+
+            CreateMap<Accreditation, AccreditationDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.InvestorClassification, opt => opt.MapFrom(src => src.InvestorClassification.ToString()));
+
+            CreateMap<UserPreference, UserPreferenceDto>()
+                .ForMember(dest => dest.Theme, opt => opt.MapFrom(src => src.Theme.ToString()));
+
+
+            CreateMap<Document, DocumentDto>()
+                .ForMember(dest => dest.DocumentType, opt => opt.MapFrom(src => src.DocumentType.ToString()))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.VerificationStatus.ToString()));
+
+            CreateMap<ActivityLog, ActivityLogDto>()
+                .ForMember(dest => dest.ActivityType, opt => opt.MapFrom(src => src.ActivityType.ToString()))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+
 
             // AuthUserModel to User mapping (for syncing domain user with auth user)
             CreateMap<AuthUserModel, User>()

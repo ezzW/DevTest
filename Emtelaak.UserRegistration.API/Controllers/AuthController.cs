@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace Emtelaak.UserRegistration.API.Controllers
 {
@@ -316,5 +317,35 @@ namespace Emtelaak.UserRegistration.API.Controllers
         //        return BadRequest(new { message = "Failed to enable two-factor authentication" });
         //    }
         //}
+
+        [HttpPost("resend-mfa-code")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ResendMfaCodeResultDto>> ResendMfaCode([FromBody] ResendMfaCodeDto request)
+        {
+            try
+            {
+                var command = new ResendMfaCodeCommand
+                {
+                    MfaToken = request.MfaToken,
+                    Method = request.Method
+                };
+
+                var result = await _mediator.Send(command);
+
+                if (!result.Success)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending MFA code");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "An error occurred while resending the verification code" });
+            }
+        }
     }
 }

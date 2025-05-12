@@ -138,5 +138,10 @@ namespace Emtelaak.UserRegistration.Infrastructure.Repositories
                 await _dbContext.SaveChangesAsync();
             }
         }
+
+        public Task<TEntity> GetByIdAsync<TEntity>(Guid id) where TEntity : class
+        {
+            throw new NotImplementedException();
+        }
     }
 }

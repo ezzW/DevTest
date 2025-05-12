@@ -40,6 +40,7 @@ namespace Emtelaak.UserRegistration.Application.Interfaces
         // Accreditation
         Task<Accreditation> AddAccreditationAsync(Accreditation accreditation);
         Task<Accreditation> GetAccreditationByUserIdAsync(Guid userId);
+        Task<Accreditation> GetAccreditationByIdAsync(Guid accreditationId);
         Task UpdateAccreditationAsync(Accreditation accreditation);
 
         Task<UserSession> GetSessionByIdAsync(Guid sessionId);

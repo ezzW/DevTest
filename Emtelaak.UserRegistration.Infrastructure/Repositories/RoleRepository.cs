@@ -165,5 +165,10 @@ namespace Emtelaak.UserRegistration.Infrastructure.Repositories
                 .Select(ur => ur.User)
                 .ToListAsync();
         }
+
+        public Task<TEntity> GetByIdAsync<TEntity>(Guid id) where TEntity : class
+        {
+            throw new NotImplementedException();
+        }
     }
 }

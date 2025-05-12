@@ -319,7 +319,24 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
                 throw new ArgumentException($"User not found with ID: {user.Id}");
             }
 
+            // Special handling for Authenticator provider
+            if (provider == "Authenticator")
+            {
+                // Get the current key or create a new one if it doesn't exist
+                var unformattedKey = await _userManager.GetAuthenticatorKeyAsync(applicationUser);
+                if (string.IsNullOrEmpty(unformattedKey))
+                {
+                    // Reset will generate a new key if one doesn't exist
+                    await _userManager.ResetAuthenticatorKeyAsync(applicationUser);
+                    unformattedKey = await _userManager.GetAuthenticatorKeyAsync(applicationUser);
+                }
+
+                return unformattedKey;
+            }
+
+            // For other providers (SMS, Email, etc.)
             return await _userManager.GenerateTwoFactorTokenAsync(applicationUser, provider);
+
         }
 
         public async Task<IdentityResultModel> SetTwoFactorEnabledAsync(AuthUserModel user, bool enabled)

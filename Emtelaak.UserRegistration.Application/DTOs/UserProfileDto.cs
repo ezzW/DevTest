@@ -17,5 +17,10 @@ namespace Emtelaak.UserRegistration.Application.DTOs
         public int ProfileCompletionPercentage { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
+        public KycVerificationDto KycVerification { get; set; }
+        public AccreditationDto Accreditation { get; set; }
+        public UserPreferenceDto UserPreference { get; set; }
+        public List<DocumentDto> Documents { get; set; }
+        public List<ActivityLogDto> RecentActivities { get; set; }
     }
 }

@@ -52,7 +52,23 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 // Verify the MFA code
                 var provider = request.VerificationData.Method;
                 var code = request.VerificationData.VerificationCode;
-                var isValid = await _identityService.VerifyTwoFactorTokenAsync(identityUser, provider, code);
+                bool isValid = false;
+                switch (request.VerificationData.Method.ToLower())
+                {
+                    case "sms":
+                        isValid = await _identityService.VerifyTwoFactorTokenAsync(identityUser, "Phone", request.VerificationData.VerificationCode);
+                        break;
+                    case "email":
+                        isValid = await _identityService.VerifyTwoFactorTokenAsync(identityUser, "Email", request.VerificationData.VerificationCode);
+                        break;
+                    case "authenticator":
+                        isValid = await _identityService.VerifyTwoFactorTokenAsync(identityUser, "Authenticator", request.VerificationData.VerificationCode);
+                        break;
+                    default:
+                        _logger.LogWarning("Invalid MFA method: {Method}", request.VerificationData.Method);
+                        isValid = false;
+                        break;
+                }
 
                 if (!isValid)
                 {

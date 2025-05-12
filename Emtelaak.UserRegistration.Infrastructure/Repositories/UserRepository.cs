@@ -29,6 +29,11 @@ namespace Emtelaak.UserRegistration.Infrastructure.Repositories
             return await _dbContext.Users.FindAsync(id);
         }
 
+        public async Task<TEntity> GetByIdAsync<TEntity>(Guid id) where TEntity : class
+        {
+            return await _dbContext.Set<TEntity>().FindAsync(id);
+        }
+
         public async Task<IReadOnlyList<User>> GetAllAsync()
         {
             return await _dbContext.Users.ToListAsync();
@@ -271,6 +276,12 @@ namespace Emtelaak.UserRegistration.Infrastructure.Repositories
         {
             return await _dbContext.Accreditations
                 .FirstOrDefaultAsync(a => a.UserId == userId);
+        }
+        
+        public async Task<Accreditation> GetAccreditationByIdAsync(Guid accreditationId)
+        {
+            return await _dbContext.Accreditations
+                .FirstOrDefaultAsync(a => a.Id == accreditationId);
         }
 
         public async Task UpdateAccreditationAsync(Accreditation accreditation)

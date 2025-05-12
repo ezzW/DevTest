@@ -47,7 +47,8 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 }
 
                 // Get identity user
-                var user = await _identityService.FindByDomainUserIdAsync(request.UserId);
+                var domainUser = await _userRepository.GetByIdAsync(request.UserId);
+                var user = await _identityService.FindUserByEmailAsync(domainUser.Email);
                 if (user == null)
                 {
                     _logger.LogWarning("Password change failed: User not found {UserId}", request.UserId);

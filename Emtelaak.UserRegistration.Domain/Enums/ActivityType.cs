@@ -16,6 +16,12 @@ namespace Emtelaak.UserRegistration.Domain.Enums
         AccreditationUpdate = 11,
         TwoFactorEnabled = 12,
         TwoFactorDisabled = 13,
-        PasswordReset = 14
+        PasswordReset = 14,
+        AccreditationSubmitted = 15,
+        AccreditationApproved = 16,
+        AccreditationRejected = 17,
+        AccreditationExpired = 18,
+        AccreditationDocumentUpload = 19,
+        AccreditationStatusUpdated = 20
     }
 }

@@ -1,8 +1,8 @@
-// Emtelaak.UserRegistration.API/Program.cs
 using System;
 using System.Reflection;
 using Emtelaak.UserRegistration.Application.Interfaces;
 using Emtelaak.UserRegistration.Application.Mappings;
+using Emtelaak.UserRegistration.Application.Services;
 using Emtelaak.UserRegistration.Infrastructure.Data;
 using Emtelaak.UserRegistration.Infrastructure.Identity;
 using Emtelaak.UserRegistration.Infrastructure.Repositories;
@@ -216,6 +216,7 @@ builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IEma
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ISmsService, SmsService>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IKycVerificationService, KycVerificationService>();
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.IDocumentStorageService, AzureBlobStorageService>();
+builder.Services.AddScoped<IDocumentRequirementsService, DocumentRequirementsService>();
 builder.Services.AddScoped<UserManager<ApplicationUser>>(provider => provider.GetRequiredService<ApplicationUserManager>());
 builder.Services.AddScoped<Emtelaak.UserRegistration.Application.Interfaces.ICountryRepository,CountryRepository>();
 

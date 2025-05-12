@@ -1,6 +1,7 @@
-﻿// Emtelaak.UserRegistration.Domain/Entities/User.cs
+﻿// Emtelaak.UserRegistration.Domain/Entities/Document.cs
 using Emtelaak.UserRegistration.Domain.Entities;
 using Emtelaak.UserRegistration.Domain.Enums;
+
 namespace Emtelaak.UserRegistration.Domain.Entities
 {
     public class Document
@@ -15,10 +16,15 @@ namespace Emtelaak.UserRegistration.Domain.Entities
         public DateTime UploadedAt { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public DocumentVerificationStatus VerificationStatus { get; set; }
-        public string RejectionReason { get; set; }
+        public string? RejectionReason { get; set; }
         public DateTime? VerifiedAt { get; set; }
+        
+        // Accreditation-specific fields
+        public bool IsAccreditationDocument { get; set; }
+        public Guid? AccreditationId { get; set; }
 
-        // Navigation property
+        // Navigation properties
         public User User { get; set; }
+        public Accreditation Accreditation { get; set; }
     }
 }

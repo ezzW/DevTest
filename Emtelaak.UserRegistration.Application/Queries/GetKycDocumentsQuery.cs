@@ -12,5 +12,6 @@ namespace Emtelaak.UserRegistration.Application.Queries
     public class GetKycDocumentsQuery : IRequest<List<DocumentDto>>
     {
         public Guid UserId { get; set; }
+        public bool ForAccreditation { get; set; }
     }
 }

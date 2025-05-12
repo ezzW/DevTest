@@ -61,7 +61,8 @@ namespace Emtelaak.UserRegistration.Application.Commands
                 await _userRepository.UpdateAsync(user);
 
                 // Update identity user
-                var identityUser = await _identityService.FindByDomainUserIdAsync(user.Id);
+                var domainUser = await _userRepository.GetByIdAsync(request.UserId);
+                var identityUser = await _identityService.FindUserByEmailAsync(domainUser.Email);
                 if (identityUser != null)
                 {
                     identityUser.FirstName = user.FirstName;

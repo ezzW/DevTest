@@ -1,4 +1,7 @@
 ﻿// Emtelaak.UserRegistration.Application/Interfaces/IEmailService.cs
+using System;
+using System.Threading.Tasks;
+
 namespace Emtelaak.UserRegistration.Application.Interfaces
 {
     public interface IEmailService
@@ -10,5 +13,12 @@ namespace Emtelaak.UserRegistration.Application.Interfaces
         Task SendKycApprovedEmailAsync(string email, string name);
         Task SendKycRejectedEmailAsync(string email, string name, string reason);
         Task SendAccountLockedEmailAsync(string email, string name);
+        Task SendTwoFactorCodeAsync(string email, string name, string code);
+        
+        // Accreditation related emails
+        Task SendAccreditationSubmittedEmailAsync(string email, string name);
+        Task SendAccreditationApprovedEmailAsync(string email, string name, string investorClassification = null, decimal? investmentLimit = null, DateTime? expiryDate = null);
+        Task SendAccreditationRejectedEmailAsync(string email, string name, string reason);
+        Task SendAccreditationExpiredEmailAsync(string email, string name, string investorClassification = null);
     }
 }

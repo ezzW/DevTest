@@ -13,5 +13,7 @@ namespace Emtelaak.UserRegistration.Application.Commands
         public Guid UserId { get; set; }
         public IFormFile File { get; set; }
         public string DocumentType { get; set; }
+        public bool IsAccreditationDocument { get; set; }
+        public Guid? AccreditationId { get; set; }
     }
 }

@@ -9,11 +9,11 @@ namespace Emtelaak.UserRegistration.Domain.Entities
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
         public KycStatus Status { get; set; }
-        public string VerificationId { get; set; }
+        public string? VerificationId { get; set; }
         public DateTime? SubmittedAt { get; set; }
         public DateTime? ApprovedAt { get; set; }
         public DateTime? RejectedAt { get; set; }
-        public string RejectionReason { get; set; }
+        public string? RejectionReason { get; set; }
         public DateTime? ExpiresAt { get; set; }
         public DateTime LastUpdatedAt { get; set; }
         public RiskLevel RiskLevel { get; set; }

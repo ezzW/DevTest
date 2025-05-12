@@ -11,5 +11,6 @@ namespace Emtelaak.UserRegistration.Application.Queries
     {
         public Guid UserId { get; set; }
         public Guid DocumentId { get; set; }
+        public bool ForAccreditation { get; set; }
     }
 }

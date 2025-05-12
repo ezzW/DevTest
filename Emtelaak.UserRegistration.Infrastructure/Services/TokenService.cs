@@ -85,7 +85,7 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
                 ExpiresIn = 3600 // 1 hour in seconds
             };
         }
-        
+
 
         public async Task<string> GenerateMfaTokenAsync(AuthUserModel user)
         {
@@ -160,7 +160,11 @@ namespace Emtelaak.UserRegistration.Infrastructure.Services
                 }
 
                 // Get email from token
-                var emailClaim = principal.FindFirst(JwtClaimTypes.Email);
+                var emailClaim = principal.FindFirst(JwtClaimTypes.Email) ??
+               principal.FindFirst(ClaimTypes.Email) ??
+               principal.FindFirst("email") ??
+               principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress");
+
                 if (emailClaim == null)
                 {
                     _logger.LogWarning("MFA token does not contain email claim");
